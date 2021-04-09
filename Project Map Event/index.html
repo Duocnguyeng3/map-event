@@ -40,25 +40,26 @@
         <ul class="activities">
             <form class="form hidden">
                 <div class="form__row">
-                    <label class="form__label">Loại hình</label>
+                    <label class="form__label">Type</label>
                     <select class="form__input form__input--type">
-                        <option value="working">Công việc</option>
-                        <option value="entertaining">Giải trí</option>
+                        <option value="working">Working</option>
+                        <option value="entertaining">Entertaining</option>
                     </select>
                 </div>
                 <div class="form__row">
-                    <label class="form__label">Số người</label>
-                    <input class="form__input form__input--guest" placeholder="người" />
+                    <label class="form__label">Guests</label>
+                    <input class="form__input form__input--guest" placeholder="guests" />
                 </div>
                 <div class="form__row">
-                    <label class="form__label">Thời gian</label>
-                    <input class="form__input form__input--time" placeholder="chọn thời gian" />
+                    <label class="form__label">Time</label>
+                    <input class="form__input form__input--time" placeholder="choose time" />
                 </div>
                 <div class="form__row">
-                    <label class="form__label">Thời lượng</label>
-                    <input class="form__input form__input--duration" placeholder="tiếng" />
+                    <label class="form__label">Duration</label>
+                    <input class="form__input form__input--duration" placeholder="duration" />
                 </div>
                 <button class="form__btn">OK</button>
+                <div class="form__close">&#9932;</div>
             </form>
 
             <!-- <li class="activity activity--working" data-id="8782983981">
@@ -100,13 +101,16 @@
                 </div>
             </li> -->
         </ul>
-        <button class="boundBtn">
-            view all
-            <svg class="activity__icon-control activity__icon-control--big">
-                <use xlink:href="sprite.svg#icon-gps_fixed"></use>
-            </svg>
-        </button>
-
+        <div class="boundBtn__container hidden">
+            <button class="boundBtn">
+                <svg class="activity__icon-control activity__icon-control--big">
+                    <use xlink:href="sprite.svg#icon-gps_fixed"></use>
+                </svg>
+            </button>
+            <div class="boundBtn__text">
+                View all on map
+            </div>
+        </div>
 
     </div>
 
