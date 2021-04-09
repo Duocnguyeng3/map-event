@@ -2,25 +2,26 @@
 
 class Activity {
     id = (Date.now() + '').slice(-10).toString(16);
-    constructor(coords, guest, time, duration) {
+    constructor(coords, guest, time, duration, location) {
         this.coords = coords;
         this.guest = guest;
         this.time = time;
         this.duration = duration;
+        this.location = location;
     }
 }
 
 class Working extends Activity {
     type = 'working';
-    constructor(coords, guest, time, duration) {
-        super(coords, guest, time, duration);
+    constructor(coords, guest, time, duration, location) {
+        super(coords, guest, time, duration, location);
     }
 }
 
 class Entertaining extends Activity {
     type = 'entertaining';
-    constructor(coords, guest, time, duration) {
-        super(coords, guest, time, duration);
+    constructor(coords, guest, time, duration, location) {
+        super(coords, guest, time, duration, location);
     }
 }
 
@@ -39,7 +40,8 @@ const logo = document.querySelector('.logo');
 const boundBtn = document.querySelector('.boundBtn');
 const gps = document.querySelector('.activity__icon-gps');
 const instruction = document.querySelector('.instruction');
-
+const boundBtnContainer = document.querySelector('.boundBtn__container');
+const formBtn = document.querySelector('.form__close');
 
 class App {
     constructor() {
@@ -72,13 +74,18 @@ class App {
 
         // add Event Delegation Listener to control icon 
         containerActivities.addEventListener('click', this._activityControl.bind(this));
+
+        // add Event listener to close the form
+        formBtn.addEventListener('click', this._hideForm);
     }
     _displayInstruction() {
         this.activitiesCount = document.querySelectorAll('.activity').length + 1;
         if (this.activitiesCount === 1) {
             instruction.classList.remove('hidden');
+            boundBtnContainer.classList.add('hidden');
         } else if (this.activitiesCount !== 1) {
             instruction.classList.add('hidden');
+            boundBtnContainer.classList.remove('hidden');
         }
     }
 
@@ -152,7 +159,7 @@ class App {
         const validNumber = (...inputs) => inputs.every(input => Number.isFinite(input));
         const validPositive = (...inputs) => inputs.every(input => input > 0);
 
-        // insert all input from form to an Object
+        // extracting all User Input from form to an Object
         const getInputValue = {
             type: inputType.value,
             guest: +inputGuest.value,
@@ -171,7 +178,44 @@ class App {
         if (!this.mapEvent && this.FormEditMode) return this._editActivity(getInputValue);
 
         // else
-        else (alert('does not regconize action!'));
+        else {
+            alert('does not regconize action!');
+            throw new Error('Does not regconize action, please review the _formSubmitHandle');
+        };
+    }
+
+    async _getLocationInfo(lat, lng) {
+        try {
+            const locationDiscription = function (...data) {
+                data = data.filter(d => typeof d === 'string');
+                let discription = '';
+                for (let i = 0; i < data.length; i++) {
+                    if (i < data.length - 1) {
+                        discription += `${data[i]}, `;
+                    }
+                    else {
+                        discription += `${data[i]}`;
+                    }
+                }
+                return discription;
+            }
+
+            const locationData = await fetch(`https://geocode.xyz/${lat},${lng}?geoit=json`);
+            if (!locationData.ok) return 'fail to load location from API, please try again!';
+
+            const location = await locationData.json();
+
+            const street = location.staddress;
+            const ward = location.osmtags.name;
+            const region = location.region;
+            const country = location.country;
+
+            console.log(location);
+            return locationDiscription(street, ward, region, country);
+        } catch (err) {
+            console.error(err);
+            throw err;
+        }
     }
 
     _newActivity(getInputValue) {
@@ -188,6 +232,42 @@ class App {
         if (type === 'entertaining') {
             activity = new Entertaining([lat, lng], guest, time, duration);
         }
+
+        // Get location from lat lng using API and update to Html
+        this._getLocationInfo(lat, lng)
+            .then(location => {
+                activity.location = location;
+
+                // find the activity card on UI to modified the location
+                const activities = Array.prototype.slice.call(document.querySelectorAll('.activity'));
+                const activityLocation = activities.find(act => act.dataset.id === activity.id);
+
+                activityLocation.querySelector('.loader__container').remove();
+
+                const html = `
+                     <div class="title__location">
+                        ${activity.location}
+                    </div>
+                `
+                activityLocation.querySelector('.activity__title').insertAdjacentHTML('beforeend', html);
+                this._setLocalStorage();
+            })
+            .catch(err => {
+                activity.location = `Fail to load Data location, please try again`;
+                const activities = Array.prototype.slice.call(document.querySelectorAll('.activity'));
+                const activityLocation = activities.find(act => act.dataset.id === activity.id);
+
+                activityLocation.querySelector('.loader__container').remove();
+
+                const html = `
+                     <div class="title__location">
+                        Fail to load Data location, please try again
+                    </div>
+                `
+                activityLocation.querySelector('.activity__title').insertAdjacentHTML('beforeend', html);
+                this._setLocalStorage();
+            });
+
         this._activities.push(activity);
 
         this._hideForm();
@@ -203,13 +283,15 @@ class App {
     }
 
     _getDateFormatted(dateInput) {
-        const day = dateInput.slice(0, 2);
-        const month = dateInput.slice(4, 5) - 1;
-        const year = dateInput.slice(6);
+        dateInput = dateInput.split('-');
+        const day = dateInput[0];
+        const month = dateInput[1] - 1;
+        const year = dateInput[2];
         return new Date(year, month, day);
     }
 
-    _hideForm() {
+    _hideForm(e) {
+        // e.preventDefault();
         // empty the input
         inputGuest.value = inputTime.value = inputDuration.value = '';
 
@@ -235,18 +317,31 @@ class App {
                 className: `${activity.type}-popup`,
             })
         )
-            .setPopupContent(`${activity.type === 'working' ? '💼' : '⚽'} ${activity.type === 'working' ? 'Công việc' : 'Giải trí'} vào ngày ${activity.time.getDate()}/${activity.time.getMonth() + 1}`)                  // Thay đổi nội dung cho popup
+            .setPopupContent(`${activity.type === 'working' ? '💼' : '⚽'} ${activity.type === 'working' ? 'Working' : 'Entertaining'} at ${activity.time.getDate()}/${activity.time.getMonth() + 1}`)                  // Thay đổi nội dung cho popup
             .openPopup();
     }
 
     _renderActivity(activity) {
         const dayRemain = Math.ceil((activity.time - new Date()) / (24 * 60 * 60 * 1000));
         const dayDiscription = function () {
-            if (dayRemain === 1) return 'ngày mai';
-            if (dayRemain === -1) return 'hôm qua';
-            if (dayRemain < 0) return 'ngày trước';
-            return 'ngày nữa';
+            if (dayRemain === 1) return 'tomorrow';
+            if (dayRemain === -1) return 'yesterday';
+            if (dayRemain < 0) return 'days ago';
+            return 'days later';
         }
+        const locationPlaceholder = activity.location ? `
+        <div class="title__location">
+            ${activity.location}
+        </div>
+        `: `
+            <div class="loader__container">
+                <div class="loader"></div>
+                <div class="loader__text">
+                   Loading location    
+                </div>
+            </div>
+        `;
+
         this.activitiesCount = document.querySelectorAll('.activity').length + 1
 
         const html = `
@@ -266,21 +361,23 @@ class App {
                         <use xlink:href="sprite.svg#icon-create"></use>
                     </svg>
                 </div>
-                <h2 class="activity__title">${this.activitiesCount}. ${activity.type === 'working' ? 'Công việc' : 'Giải trí'} vào ngày ${activity.time.getDate()}/${activity.time.getMonth() + 1}</h2>
+                <h2 class="activity__title">${this.activitiesCount}. ${activity.type === 'working' ? 'Working' : 'Entertaining'} at ${activity.time.getDate()}/${activity.time.getMonth() + 1}
+                    ${locationPlaceholder}
+                </h2>
                 <div class="activity__details">
                     <span class="activity__icon">👨</span>
                     <span class="activity__value activity__value-persons">${activity.guest}</span>
-                    <span class="activity__unit">người</span>
+                    <span class="activity__unit">people</span>
                 </div>
                 <div class="activity__details">
                     <span class="activity__icon">📆</span>
                     <span class="activity__value activity__value-time">${activity.time.getDate()}/${activity.time.getMonth() + 1}</span>
-                    <span class="activity__unit">ngày tháng</span>
+                    <span class="activity__unit">day</span>
                 </div>
                 <div class="activity__details">
                     <span class="activity__icon">⏱</span>
                     <span class="activity__value activity__value-duration">${activity.duration}</span>
-                    <span class="activity__unit">tiếng</span>
+                    <span class="activity__unit">hous</span>
                 </div>
                 <div class="activity__details">
                     <span class="activity__icon">⏳</span>
@@ -388,4 +485,22 @@ class App {
 
 
 const app = new App();
-// console.log(app);
+
+// const locationDiscription = function (...data) {
+
+//     let discription = '';
+//     for (let i = 0; i < data.length; i++) {
+//         if (i < data.length - 1) {
+//             discription += `${data[i]}, `;
+//         }
+//         else {
+//             discription += `${data[i]}`;
+//         }
+//     }
+//     return discription;
+
+// }
+
+// console.log(locationDiscription('1', '2', '3'));
+
+console.log(typeof 'gg');
